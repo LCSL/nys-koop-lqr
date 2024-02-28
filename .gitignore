@@ -1,0 +1,5 @@
+# created by virtualenv automatically
+.DS_Store
+.idea
+venv
+/eigfuns/Functions/qpOASES-3.1.0/
