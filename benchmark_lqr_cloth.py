@@ -142,7 +142,7 @@ if __name__ == '__main__':
     n_inputs = 6
     n_trajs = 50
     n_training_trajs = 30
-    validate_sys_id = True
+    validate_sys_id = False
     cross_validate = False
     n_val_trajs = 10  # for hyperparameter learning
     for i in range(0, n_trajs):
@@ -222,7 +222,8 @@ if __name__ == '__main__':
                 with open(f"{path_to_experiment}/cross_validated_kern_params_{kapprox}_cloth_swing.npy", 'rb') as f:
                     clf = pickle.load(f)
                     kernel_params = clf.best_params_
-                kernel_params['m'] = 100
+                m = 100
+                kernel_params['m'] = m
 
                 regressor = None
                 if kapprox == 'nystrom':
@@ -235,7 +236,7 @@ if __name__ == '__main__':
                 C = regressor.C
                 initial_state = all_trajs[0][:, 0].reshape([-1, 1])
                 R = np.eye(n_inputs)
-                Q = 0.5e-2 * C.T @ C
+                Q = 0.075e-1 * C.T @ C
                 Q = (Q + Q.T) / 2
                 offset = np.zeros((n_states, 1))
                 alpha = np.pi / 4
@@ -257,12 +258,12 @@ if __name__ == '__main__':
                 pathdata.mkdir(parents=True, exist_ok=True)
                 pathplots.mkdir(parents=True, exist_ok=True)
 
-                np.savetxt(f"{pathdata}/reference_lqr.csv", reference)
+                np.savetxt(f"{pathdata}/reference_lqr_m_{m}.csv", reference)
                 K, _, _ = control.dlqr(A, B, Q, R)
                 K_SOM = K[[0, 3, 1, 4, 2, 5], :]
                 # Careful with actual input sequence used by F. Coltraro's simulator in matlab
-                np.savetxt(f"{pathdata}/K_lqr_seed_{seed}.csv", K_SOM)
-                with open(f"{pathdata}/regressor_seed_{seed}.npy", 'wb') as f:
+                np.savetxt(f"{pathdata}/REBUTTAL_K_lqr_seed_{seed}_m_{m}.csv", K_SOM)
+                with open(f"{pathdata}/REBUTTAL_regressor_seed_{seed}_m_{m}.npy", 'wb') as f:
                     pickle.dump(regressor, f)
 
                 end = 60

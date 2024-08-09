@@ -2,13 +2,13 @@
 Author: Edoardo Caldarelli
 Affiliation: Institut de Robòtica i Informàtica Industrial, CSIC-UPC
 email: ecaldarelli@iri.upc.edu
-January 2024
+July 2024
 '''
 
 
 import scipy.linalg
 import scipy.signal
-from sklearn.gaussian_process.kernels import RBF, Matern
+from sklearn.gaussian_process.kernels import RBF, Matern, DotProduct
 from sklearn.base import BaseEstimator
 import numpy as np
 
@@ -25,8 +25,12 @@ class KernelWrapper():
     def __init__(self, ls):
         self.kernel = Matern(ls, nu=2.5)
 
+class LinearKernelWrapper():
+    def __init__(self, sigma):
+        self.kernel = DotProduct(sigma_0=sigma)
+
 class KoopmanRegressor(BaseEstimator):
-    def __init__(self, n_inputs, gamma, m):
+    def __init__(self, n_inputs, gamma, m=None):
         self.gamma = gamma
         self.m = m
         self.A = None
@@ -51,8 +55,64 @@ class KoopmanRegressor(BaseEstimator):
         return (self.weights @ phi_X).T
 
 
+class KoopmanKernelRegressor(KoopmanRegressor):
+    def __init__(self, n_inputs, kernel=None, gamma=None):
+        super().__init__(n_inputs, gamma)
+        self.kernel = kernel
+        self.training_inputs = None
+        self.training_outputs = None
+        self.jitter = 1e-6
+
+    def fit(self, X, Y):
+        X = X.T
+        Y = Y.T
+
+        n_states = X.shape[0] - self.n_inputs
+        gamma_n = self.gamma * X.shape[1]
+
+        if self.training_inputs is None:
+            self.training_inputs = X
+        if self.training_outputs is None:
+            self.training_outputs = Y
+
+        kern = self.kernel
+        # U = Z_x^*(Z_xZ_x^*)^{-1/2}
+        # zvec+ = (Z_xZ_x^*)^{1/2}  (SS*+γI)^{-1}S[U zvec ; u ]
+
+        K_ins = (kern.kernel(self.training_inputs[:n_states, :].T, self.training_inputs[:n_states, :].T)
+                 + self.training_inputs[n_states:, :].T @ self.training_inputs[n_states:, :]
+                 + gamma_n * np.eye(X.shape[1]))
+        Kout = kern.kernel(self.training_outputs.T, self.training_outputs.T) + self.jitter * np.eye(X.shape[1])
+        self.Kout = Kout
+        Kout_sqrt = scipy.linalg.sqrtm(Kout).real
+        Kout_sqrt_inv = scipy.linalg.pinv(Kout_sqrt)
+        self.Kout_sqrt_inv = Kout_sqrt_inv
+        Kins_x_outs = kern.kernel(self.training_inputs[:n_states, :].T, self.training_outputs.T)
+        right_term_state = (Kout_sqrt_inv @ Kins_x_outs.T).T
+        right_term = np.hstack((right_term_state, self.training_inputs[n_states:, :].T))
+        G_ls = Kout_sqrt @ scipy.linalg.solve(K_ins, right_term, assume_a='her')
+        self.A = G_ls[:, : X.shape[1]]
+        self.B = G_ls[:, X.shape[1]:]
+
+        # Kernel ridge regression to reconstruct the state from the features (output space)
+        Phi = scipy.linalg.solve(Kout_sqrt, Kout).T
+        self.C = self.training_outputs @ scipy.linalg.solve(Phi @ Phi.T + gamma_n * np.eye(Phi.shape[0]), Phi, assume_a='her')
+        W = self.C @ G_ls
+
+        self.weights = W
+
+    def lift(self, X):
+        # X is not augmented, no input
+        kern = self.kernel
+        # Kout = kern.kernel(self.training_outputs.T, self.training_outputs.T) + self.jitter * np.eye(self.training_outputs.shape[1])
+        # Kout_sqrt = scipy.linalg.sqrtm(Kout).real
+        Kout_test = kern.kernel(self.training_outputs.T, X.T)
+        phi = self.Kout_sqrt_inv @ Kout_test
+        return phi
+
+
 class KoopmanNystromRegressor(KoopmanRegressor):
-    def __init__(self, n_inputs, kernel, gamma=None, m=None):
+    def __init__(self, n_inputs, kernel=None, gamma=None, m=None):
         super().__init__(n_inputs, gamma, m)
         self.kernel = kernel
         self.nystrom_centers_input = None
