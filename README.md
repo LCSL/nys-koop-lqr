@@ -4,7 +4,7 @@ by Edoardo Caldarelli, Antoine Chatalic, Adrià Colomé, Cesare Molinari, Carlos
 to appear in Automatica.
 
 
-Contact author: ecaldarelli@iri.upc.edu
+Contact author: edoardo.caldarelli@iit.it
 # Sources
 
 ### Duffing oscillator
