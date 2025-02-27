@@ -1,7 +1,7 @@
 # Description
 This repository contains the code for the paper "Linear quadratic control of nonlinear systems with Koopman operator learning and the Nyström method", 
-by Edoardo Caldarelli, Antoine Chatalic, Adrià Colomé, Cesare Molinari, Carlos Ocampo-Martinez, Carme Torras, and Lorenzo Rosasco, 2024, 
-submitted to Automatica.
+by Edoardo Caldarelli, Antoine Chatalic, Adrià Colomé, Cesare Molinari, Carlos Ocampo-Martinez, Carme Torras, and Lorenzo Rosasco, 2025, 
+to appear in Automatica.
 
 
 Contact author: ecaldarelli@iri.upc.edu
